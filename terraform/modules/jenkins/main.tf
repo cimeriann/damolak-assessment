@@ -319,7 +319,10 @@ locals {
     EOF
     chmod 600 /etc/jenkins/casc.env
 
-    # systemd unit for Jenkins
+    # Resolve the host's docker group GID so the in-container jenkins user
+    # can talk to /var/run/docker.sock (mounted from host)
+    DOCKER_GID=$(getent group docker | cut -d: -f3)
+
     cat > /etc/systemd/system/jenkins.service <<'UNIT'
     [Unit]
     Description=Jenkins controller (Docker)
@@ -334,6 +337,7 @@ locals {
     ExecStartPre=-/usr/bin/docker rm -f jenkins
     ExecStart=/usr/bin/docker run --rm --name jenkins \
       -p 8080:8080 -p 50000:50000 \
+      --group-add DOCKER_GID_PLACEHOLDER \
       -v /var/jenkins_home:/var/jenkins_home \
       -v /var/run/docker.sock:/var/run/docker.sock \
       --env-file /etc/jenkins/casc.env \
@@ -345,6 +349,7 @@ locals {
     UNIT
 
     sed -i "s|JENKINS_IMAGE_PLACEHOLDER|${var.jenkins_image}|" /etc/systemd/system/jenkins.service
+    sed -i "s|DOCKER_GID_PLACEHOLDER|$DOCKER_GID|" /etc/systemd/system/jenkins.service
     systemctl daemon-reload
     systemctl enable --now jenkins
   EOT
