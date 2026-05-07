@@ -1,0 +1,50 @@
+jenkins:
+  systemMessage: "Assessment CI — managed by JCasC. Do not edit through the UI."
+  numExecutors: 2
+  mode: NORMAL
+  scmCheckoutRetryCount: 2
+
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+unclassified:
+  location:
+    url: "${JENKINS_URL}"
+
+jobs:
+  - script: |
+      pipelineJob('assessment-app') {
+        description('Build, test, and deploy assessment-app to ECS on EC2.')
+        environmentVariables {
+          env('AWS_REGION',      "${AWS_REGION}")
+          env('ECR_REPOSITORY',  "${ECR_REPOSITORY}")
+          env('ECS_CLUSTER',     "${ECS_CLUSTER}")
+          env('ECS_SERVICE',     "${ECS_SERVICE}")
+          env('ECS_TASK_FAMILY', "${ECS_TASK_FAMILY}")
+        }
+        triggers {
+          scm('H/2 * * * *')
+        }
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url("${REPO_URL}")
+                }
+                branch("${REPO_BRANCH}")
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(true)
+          }
+        }
+      }
