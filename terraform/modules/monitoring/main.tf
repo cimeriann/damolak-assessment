@@ -157,7 +157,7 @@ resource "aws_cloudwatch_metric_alarm" "running_tasks_low" {
 # --- Dashboard --------------------------------------------------------------
 
 resource "aws_cloudwatch_dashboard" "this" {
-  dashboard_name = "${var.name}-prod"
+  dashboard_name = var.name
   dashboard_body = jsonencode({
     widgets = [
       {
