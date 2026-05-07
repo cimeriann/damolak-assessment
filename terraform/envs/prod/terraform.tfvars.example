@@ -1,0 +1,23 @@
+# Copy to terraform.tfvars and fill in. tfvars is gitignored.
+
+region      = "us-east-1"
+project     = "assessment"
+environment = "prod"
+
+# Lock Jenkins UI/SSH down to your IP.
+jenkins_admin_cidr     = "203.0.113.42/32"
+jenkins_admin_password = "REPLACE_ME"
+
+# Image URI of the custom Jenkins controller (after you've pushed it to ECR).
+# Format: <account>.dkr.ecr.<region>.amazonaws.com/assessment-prod-jenkins:latest
+jenkins_image = "280250684906.dkr.ecr.us-east-1.amazonaws.com/assessment-prod-jenkins:latest"
+
+# Where Jenkins clones from. Set to your repo.
+repo_url    = "https://github.com/your-username/assessment.git"
+repo_branch = "main"
+
+# Optional: subscribe an email to alarm SNS.
+alarm_email = ""
+
+# Optional: existing EC2 key pair name for SSH to Jenkins.
+# jenkins_key_name = "your-keypair"
