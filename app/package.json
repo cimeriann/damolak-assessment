@@ -1,0 +1,16 @@
+{
+  "name": "assessment-app",
+  "version": "1.0.0",
+  "description": "Sample web service deployed to ECS on EC2 via Jenkins",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test 'test/**/*.test.js'"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
