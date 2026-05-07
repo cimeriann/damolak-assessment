@@ -171,10 +171,11 @@ REPO=$(aws ecr describe-repositories \
         --region $REGION --query 'repositories[0].repositoryUri' --output text)
 
 aws ecr get-login-password --region $REGION \
-  | docker login --username AWS --password-stdin $REPO
+  | docker login --username AWS --password-stdin "$REPO"
 
-docker build -t "${REPO}:latest" .
-docker push "${REPO}:latest"
+# --platform=linux/amd64 is REQUIRED on Apple Silicon. The ECS / Jenkins
+# EC2 hosts are x86_64; an arm64-only manifest will fail to pull at runtime.
+docker buildx build --platform linux/amd64 -t "${REPO}:latest" --push .
 ```
 
 ### 3. Apply the rest of the infra
@@ -193,7 +194,18 @@ Outputs include:
 
 ### 4. First deploy of the app
 
-Push the repo to the GitHub URL you set in `repo_url`. Within 2 minutes Jenkins polls SCM, sees the commit, and runs the pipeline:
+Push the repo to the GitHub URL you set in `repo_url`. Within 2 minutes Jenkins polls SCM, sees the commit, and runs the pipeline.
+
+> **If your fork is private**, add a Jenkins credential first or the clone fails:
+>
+> 1. GitHub → **Settings → Developer settings → Personal access tokens → Fine-grained** → generate a token scoped to this repo with **Contents: Read-only**.
+> 2. In Jenkins UI: **Manage Jenkins → Credentials → System → Global credentials → Add**
+>    - Kind: `Username with password`, Username: your GitHub username, Password: the PAT, ID: `github-pat`.
+> 3. Open the `assessment-app` job → **Configure → Pipeline → Pipeline script from SCM → Git** → set the credential to `github-pat`. Save.
+>
+> JCasC re-renders this job on Jenkins restart, so to make the credential reference persist, also reference `github-pat` in the `git { remote { credentials("github-pat") } }` block of `jenkins/casc/jenkins.yaml` and inject the PAT into `casc.env` via Secrets Manager (see "Known limitations").
+
+The pipeline runs:
 
 1. `git checkout`
 2. `npm ci && npm test` (in a `node:20-alpine` container)
@@ -209,7 +221,7 @@ After the first pipeline run, `curl $(terraform output -raw alb_url)/healthz` re
 ## Operating
 
 - **Logs:** `aws logs tail /ecs/assessment-prod-app --follow` or browse in CloudWatch Logs Insights via the dashboard's "Recent app errors" panel.
-- **Dashboard:** CloudWatch → Dashboards → `assessment-prod-prod`.
+- **Dashboard:** CloudWatch → Dashboards → `assessment-prod`.
 - **Rollback:** Re-run the pipeline against an older commit (the task-definition history is preserved). Or, in the ECS console, pick a prior task-def revision and update the service.
 - **Scaling the app:** change `app_desired_count` in `terraform.tfvars` and re-apply. The ECS service ignores `desired_count` after creation by design; bump via `aws ecs update-service` for hot scaling, or via tfvars + apply for the persistent value.
 - **Scaling the cluster:** ECS managed scaling adjusts the ASG to keep `target_capacity = 100`. Bump `ecs_asg_max` if you outgrow it.
@@ -287,4 +299,3 @@ cd ../terraform && terraform fmt -recursive -check
 cd modules/vpc && terraform init -backend=false && terraform validate
 # …repeat for each module
 ```
-# damolak-assessment
